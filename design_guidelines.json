@@ -1,0 +1,109 @@
+{
+  "theme": "dark",
+  "archetype": "Archetype 7: Electric & Neon",
+  "design_philosophy": "Cyberpunk aesthetic with high contrast, neon accents, and deep void blacks. Tension created by sharp edges and asymmetrical grids. Utilitarian 'terminal' feel for the dashboard, cinematic depth for the portfolio.",
+  "colors": {
+    "background": "#050505",
+    "foreground": "#F0F0F0",
+    "primary": "#FF2A6D",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#05D9E8",
+    "secondary_foreground": "#050505",
+    "accent": "#01FFC3",
+    "accent_foreground": "#050505",
+    "muted": "#12121A",
+    "muted_foreground": "#8A8A93",
+    "card": "#0A0A0E",
+    "card_foreground": "#E2E2E2",
+    "border": "#1F1F2E",
+    "input": "#1F1F2E",
+    "ring": "#05D9E8"
+  },
+  "typography": {
+    "heading_font": "Unbounded",
+    "body_font": "Outfit",
+    "mono_font": "JetBrains Mono",
+    "h1": "text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter uppercase",
+    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight uppercase",
+    "h3": "text-xl sm:text-2xl font-semibold tracking-tight",
+    "h4": "text-lg sm:text-xl font-medium",
+    "body": "text-base leading-relaxed text-foreground/80",
+    "label": "text-xs font-mono tracking-[0.2em] uppercase text-secondary"
+  },
+  "spacing_and_layout": {
+    "section_padding": "py-24 sm:py-32",
+    "container_padding": "px-6 sm:px-12 lg:px-24",
+    "grid_bento": "grid grid-cols-1 md:grid-cols-12 gap-8",
+    "border_radius": "rounded-none",
+    "alignment": "optical alignment, heavy use of left-aligned text to mimic terminal interfaces"
+  },
+  "surfaces_and_effects": {
+    "header": "bg-black/60 backdrop-blur-xl border-b border-white/10",
+    "card_default": "bg-[#0A0A0E] border border-[#1F1F2E] rounded-none",
+    "card_hover": "hover:-translate-y-1 transition-transform duration-300 border-secondary/50 shadow-[0_0_15px_rgba(5,217,232,0.2)]",
+    "button_primary": "bg-primary text-white font-mono uppercase tracking-wider px-8 py-4 hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(255,42,109,0.5)] transition-all",
+    "button_secondary": "bg-transparent border border-secondary text-secondary font-mono uppercase tracking-wider px-8 py-4 hover:bg-secondary/10 hover:shadow-[0_0_20px_rgba(5,217,232,0.3)] transition-all",
+    "terminal_panel": "bg-black border border-accent/30 drop-shadow-[0_0_8px_rgba(1,255,195,0.2)]"
+  },
+  "components": {
+    "navigation": "Sticky top-0 z-50 glassmorphism, mono-font links, primary CTA. Links visible on desktop.",
+    "hero": "Full height (min-h-[90vh]), background image with bg-black/70 overlay or gradient overlay to ensure text contrast. Large H1, terminal typing effect for subtitle.",
+    "bento_projects": "Asymmetrical grid. Main project col-span-12 md:col-span-8 row-span-2. Secondary projects col-span-12 md:col-span-4.",
+    "resume_section": "Two-column layout. Left: sticky index/skills. Right: Timeline of experience with left-border accent (cyan).",
+    "contact_form": "Shadcn UI forms customized with sharp edges, dark inputs, neon focus rings.",
+    "dashboard": "Strict grid hierarchy, dense spacing, sidebar navigation. Use Shadcn Table and Dialog for content management.",
+    "icons": "@phosphor-icons/react for a sharp, technical look."
+  },
+  "motion": {
+    "hover": "High contrast shifts, neon glowing shadows.",
+    "entrance": "Framer Motion: subtle glitch effect on load, or staggered fade-up.",
+    "transitions": "Fast, mechanical eases (e.g., cubic-bezier(0.25, 1, 0.5, 1))."
+  },
+  "images": {
+    "hero_bg": {
+      "url": "https://images.pexels.com/photos/5845255/pexels-photo-5845255.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Vibrant neon-lit streets of Tokyo at night",
+      "usage": "Hero section background with dark overlay"
+    },
+    "about_image": {
+      "url": "https://images.pexels.com/photos/6489046/pexels-photo-6489046.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Sleek gaming setup featuring neon lights",
+      "usage": "About section profile/context image"
+    },
+    "project_1": {
+      "url": "https://images.pexels.com/photos/7688549/pexels-photo-7688549.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Cybernetic prosthetic arm with chrome detailing under vibrant neon lights",
+      "usage": "Featured project cover"
+    },
+    "project_2": {
+      "url": "https://images.pexels.com/photos/159393/gamepad-video-game-controller-game-controller-controller-159393.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Detailed macro shot of a black game controller",
+      "usage": "Secondary project cover"
+    },
+    "project_3": {
+      "url": "https://images.unsplash.com/photo-1641650265007-b2db704cd9f3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxjeWJlcnB1bmslMjBjaXR5JTIwbmVvbnxlbnwwfHx8fDE3NzU3ODc1MTh8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Neon triangle building",
+      "usage": "Tertiary project cover"
+    },
+    "dashboard_bg": {
+      "url": "https://images.pexels.com/photos/7429526/pexels-photo-7429526.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Dynamic long exposure capturing vibrant neon light streaks",
+      "usage": "Subtle background texture for the login/dashboard wrapper"
+    }
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure all text over neon accents meets APCA 3:1 contrast. Use dark text (#050505) over Cyan and Green accents.",
+    "testing": "All interactive elements MUST include data-testid attribute in kebab-case (e.g., data-testid='hero-cta-button')."
+  },
+  "instructions_to_main_agent": [
+    "Install @phosphor-icons/react, framer-motion, lucide-react.",
+    "Use Unbounded (Headings), Outfit (Body), and JetBrains Mono (Accents) via Google Fonts.",
+    "Override default shadcn border-radius to 0 (rounded-none).",
+    "Configure Tailwind CSS to use the specific hex colors provided in the palette, extending colors and creating custom drop-shadows for glowing effects.",
+    "Build custom layout for Marketing pages (Home, Projects, Resume, Contact) using raw HTML/Tailwind with Framer Motion.",
+    "Build the dashboard (accessible via a hidden or specific /admin route) using Shadcn UI components heavily customized to fit the neon dark mode theme.",
+    "Implement the bento grid for the Projects section.",
+    "Include a 'Download PDF' button on the Resume page.",
+    "Use data-testid attributes on all interactive elements as requested."
+  ]
+}
