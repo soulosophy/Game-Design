@@ -1,52 +1,118 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Toaster, toast } from "sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { SiteShell } from "@/components/site-shell";
+import ContactPage from "@/pages/contact-page";
+import HomePage from "@/pages/home-page";
+import ProjectsPage from "@/pages/projects-page";
+import ResumePage from "@/pages/resume-page";
+import StudioPage from "@/pages/studio-page";
+import {
+  getContactMessages,
+  getPortfolioContent,
+  submitContactMessage,
+  updatePortfolioContent,
+} from "@/lib/api";
 
-const Home = () => {
-  const helloWorldApi = async () => {
+function App() {
+  const [portfolio, setPortfolio] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const loadAppData = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+      setLoading(true);
+      const [portfolioResponse, messagesResponse] = await Promise.all([
+        getPortfolioContent(),
+        getContactMessages(),
+      ]);
+
+      setPortfolio(portfolioResponse);
+      setMessages(messagesResponse);
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn’t load the portfolio content.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+    loadAppData();
+  }, [loadAppData]);
+
+  const handleSavePortfolio = async (nextPortfolio) => {
+    try {
+      setSaving(true);
+      const updatedPortfolio = await updatePortfolioContent(nextPortfolio);
+      setPortfolio(updatedPortfolio);
+      toast.success("Portfolio content updated.");
+      return updatedPortfolio;
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn’t save your changes.");
+      throw error;
+    } finally {
+      setSaving(false);
     }
   };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+  const handleSubmitContact = async (payload) => {
+    await submitContactMessage(payload);
+    const refreshedMessages = await getContactMessages();
+    setMessages(refreshedMessages);
+  };
+
+  if (loading || !portfolio) {
+    return (
+      <div className="app-loading-screen" data-testid="app-loading-screen">
+        <div className="loading-panel scanlines" data-testid="loading-panel">
+          <p className="loading-kicker" data-testid="loading-kicker">
+            INITIALIZING PORTFOLIO
+          </p>
+          <h1 className="loading-title" data-testid="loading-title">
+            Loading your cyberpunk showcase
+          </h1>
+          <p className="loading-copy" data-testid="loading-copy">
+            Pulling portfolio content, project lanes, resume details, and inbox
+            messages from the grid.
+          </p>
+        </div>
+        <Toaster richColors position="top-right" theme="dark" />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
+    <div className="App" data-testid="portfolio-app-shell">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
+          <Route
+            element={
+              <SiteShell
+                messages={messages}
+                onRefresh={loadAppData}
+                onSavePortfolio={handleSavePortfolio}
+                onSubmitContact={handleSubmitContact}
+                portfolio={portfolio}
+                saving={saving}
+              />
+            }
+          >
+            <Route element={<HomePage />} path="/" />
+            <Route element={<ProjectsPage />} path="/projects" />
+            <Route element={<ResumePage />} path="/resume" />
+            <Route element={<ContactPage />} path="/contact" />
+            <Route element={<StudioPage />} path="/studio" />
+            <Route element={<Navigate replace to="/" />} path="*" />
           </Route>
         </Routes>
       </BrowserRouter>
+      <Toaster richColors position="top-right" theme="dark" />
     </div>
   );
 }

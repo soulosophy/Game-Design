@@ -1,88 +1,364 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import List
+
+from dotenv import load_dotenv
+from fastapi import APIRouter, FastAPI
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from starlette.middleware.cors import CORSMiddleware
 
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / ".env")
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ["DB_NAME"]]
 
-# Create the main app without a prefix
+PORTFOLIO_DOCUMENT_ID = "portfolio-main"
+
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+def utc_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class ProjectCategory(BaseModel):
+    id: str
+    label: str
+    description: str
+
+
+class ProjectEntry(BaseModel):
+    id: str
+    title: str
+    category_id: str
+    summary: str
+    role: str
+    year: str
+    outcome: str
+    cover_image: str
+    tools: List[str] = Field(default_factory=list)
+    detail_points: List[str] = Field(default_factory=list)
+    featured: bool = False
+
+
+class TimelineEntry(BaseModel):
+    id: str
+    title: str
+    organization: str
+    period: str
+    description: str
+    bullets: List[str] = Field(default_factory=list)
+
+
+class EducationEntry(BaseModel):
+    id: str
+    program: str
+    school: str
+    period: str
+    details: str
+
+
+class LinkItem(BaseModel):
+    id: str
+    label: str
+    url: str
+
+
+class HeroContent(BaseModel):
+    name: str
+    title: str
+    tagline: str
+    status: str
+    hero_image: str
+
+
+class AboutContent(BaseModel):
+    headline: str
+    intro: str
+    detail: str
+    image_url: str
+    specialties: List[str] = Field(default_factory=list)
+    tools: List[str] = Field(default_factory=list)
+
+
+class ResumeContent(BaseModel):
+    summary: str
+    pdf_url: str
+    skills: List[str] = Field(default_factory=list)
+    experience: List[TimelineEntry] = Field(default_factory=list)
+    education: List[EducationEntry] = Field(default_factory=list)
+
+
+class ContactContent(BaseModel):
+    intro: str
+    email: str
+    location: str
+    availability: str
+    links: List[LinkItem] = Field(default_factory=list)
+
+
+class PortfolioContent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default=PORTFOLIO_DOCUMENT_ID)
+    hero: HeroContent
+    about: AboutContent
+    project_categories: List[ProjectCategory] = Field(default_factory=list)
+    projects: List[ProjectEntry] = Field(default_factory=list)
+    resume: ResumeContent
+    contact: ContactContent
+    updated_at: str = Field(default_factory=utc_iso)
+
+
+class ContactMessageCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    email: EmailStr
+    project_interest: str = Field(min_length=2, max_length=120)
+    message: str = Field(min_length=10, max_length=2000)
+
+
+class ContactMessage(ContactMessageCreate):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: str = Field(default_factory=utc_iso)
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
+def default_portfolio() -> PortfolioContent:
+    return PortfolioContent(
+        hero=HeroContent(
+            name="Your Name",
+            title="Game Designer • Systems Thinker • Worldbuilder",
+            tagline="I design readable spaces, high-stakes encounters, and player-first mechanics for neon-soaked worlds.",
+            status="Open to internships, collaborations, and junior game design roles.",
+            hero_image="https://images.pexels.com/photos/5845255/pexels-photo-5845255.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        ),
+        about=AboutContent(
+            headline="Designing memorable play through clarity, tension, and player choice.",
+            intro="I am a game design student focused on systems, level flow, and the tiny interactions that make a world feel alive.",
+            detail="Use the Studio page to swap every line, link, category, and project card with your own material. The structure is already organized so you can plug content in without guessing where it belongs.",
+            image_url="https://images.pexels.com/photos/6489046/pexels-photo-6489046.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+            specialties=[
+                "Level design for guided exploration",
+                "Combat encounter pacing",
+                "Quest and progression beats",
+                "Playtesting and iteration",
+            ],
+            tools=["Unreal Engine", "Unity", "Figma", "Miro", "Photoshop", "Excel"],
+        ),
+        project_categories=[
+            ProjectCategory(
+                id="level-design",
+                label="Level Design",
+                description="Spaces built for readability, atmosphere, and tactical decision-making.",
+            ),
+            ProjectCategory(
+                id="systems-design",
+                label="Systems Design",
+                description="Rules, loops, and tuning that shape player behavior over time.",
+            ),
+            ProjectCategory(
+                id="narrative-design",
+                label="Narrative Design",
+                description="Story structure, mission beats, and environmental storytelling.",
+            ),
+        ],
+        projects=[
+            ProjectEntry(
+                id="neon-heist",
+                title="Neon Heist",
+                category_id="level-design",
+                summary="A stealth-action student prototype focused on vertical infiltration and readable enemy routing.",
+                role="Level Designer",
+                year="2026",
+                outcome="Built a layered infiltration route with three viable paths and strong visual signposting.",
+                cover_image="https://images.pexels.com/photos/7688549/pexels-photo-7688549.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+                tools=["Unreal Engine 5", "Blockout", "Blueprints"],
+                detail_points=[
+                    "Designed a mission loop around surveillance, distraction, and escape.",
+                    "Iterated on player readability after peer playtests.",
+                    "Documented key beats with top-down maps and callouts.",
+                ],
+                featured=True,
+            ),
+            ProjectEntry(
+                id="chrome-loop",
+                title="Chrome Loop",
+                category_id="systems-design",
+                summary="A roguelite progression concept balancing risk, upgrades, and time pressure.",
+                role="Systems Designer",
+                year="2025",
+                outcome="Shaped a reward economy that encouraged aggressive play without overwhelming new players.",
+                cover_image="https://images.pexels.com/photos/159393/gamepad-video-game-controller-game-controller-controller-159393.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+                tools=["Sheets", "Machinations", "Unity"],
+                detail_points=[
+                    "Mapped core loops and progression sinks.",
+                    "Created balancing tables for enemy scaling and reward pacing.",
+                    "Ran tuning passes based on session feedback.",
+                ],
+                featured=False,
+            ),
+            ProjectEntry(
+                id="signal-zero",
+                title="Signal Zero",
+                category_id="narrative-design",
+                summary="A branching cyberpunk story prototype driven by social infiltration and faction trust.",
+                role="Narrative Designer",
+                year="2025",
+                outcome="Built mission dialogue with clear consequence tracking and environmental story hooks.",
+                cover_image="https://images.unsplash.com/photo-1641650265007-b2db704cd9f3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxjeWJlcnB1bmslMjBjaXR5JTIwbmVvbnxlbnwwfHx8fDE3NzU3ODc1MTh8MA&ixlib=rb-4.1.0&q=85",
+                tools=["Twine", "Miro", "Google Docs"],
+                detail_points=[
+                    "Outlined faction goals and player-facing choice points.",
+                    "Wrote branching scenes for trust gain and loss.",
+                    "Used environmental clues to foreshadow mission twists.",
+                ],
+                featured=False,
+            ),
+        ],
+        resume=ResumeContent(
+            summary="I combine design documentation, greyboxing, system tuning, and playtest-driven iteration to create game experiences that feel legible, tense, and rewarding.",
+            pdf_url="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            skills=[
+                "Level greyboxing",
+                "Encounter design",
+                "Gameplay documentation",
+                "Balance tuning",
+                "Player onboarding",
+                "Narrative structure",
+            ],
+            experience=[
+                TimelineEntry(
+                    id="student-project-lead",
+                    title="Student Project Lead",
+                    organization="University Capstone Team",
+                    period="2025 – Present",
+                    description="Led cross-discipline collaboration across design, art, and engineering for a cyberpunk action prototype.",
+                    bullets=[
+                        "Defined milestone goals and gameplay pillars.",
+                        "Directed playtest capture and issue prioritization.",
+                        "Maintained design docs and presentation decks.",
+                    ],
+                ),
+                TimelineEntry(
+                    id="level-design-collaborator",
+                    title="Level Design Collaborator",
+                    organization="Game Jam + Coursework Projects",
+                    period="2024 – 2025",
+                    description="Designed compact playable spaces with strong route readability and encounter pacing.",
+                    bullets=[
+                        "Built blockouts for small-team prototypes.",
+                        "Adjusted layouts based on heatmaps and player notes.",
+                        "Supported teammates with references and combat flow planning.",
+                    ],
+                ),
+            ],
+            education=[
+                EducationEntry(
+                    id="game-design-degree",
+                    program="B.A. / B.S. in Game Design",
+                    school="Your University",
+                    period="Expected 2026",
+                    details="Replace this with your degree program, graduation timeline, honors, and notable coursework.",
+                )
+            ],
+        ),
+        contact=ContactContent(
+            intro="If you are looking for someone who loves player empathy, encounter pacing, and cyberpunk worldbuilding, let’s talk.",
+            email="yourname@email.com",
+            location="Your City, Your Country",
+            availability="Available for internships, freelance collaboration, and playtest support.",
+            links=[
+                LinkItem(id="linkedin", label="LinkedIn", url="https://www.linkedin.com/"),
+                LinkItem(id="itch", label="itch.io", url="https://itch.io/"),
+                LinkItem(id="github", label="GitHub", url="https://github.com/"),
+            ],
+        ),
+    )
+
+
+async def get_or_seed_portfolio() -> dict:
+    portfolio = await db.portfolio_content.find_one({"id": PORTFOLIO_DOCUMENT_ID}, {"_id": 0})
+    if portfolio:
+        return portfolio
+
+    seeded_portfolio = default_portfolio().model_dump(mode="json")
+    await db.portfolio_content.insert_one(seeded_portfolio.copy())
+    return seeded_portfolio
+
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Neon portfolio API online"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/portfolio", response_model=PortfolioContent)
+async def get_portfolio():
+    portfolio = await get_or_seed_portfolio()
+    return portfolio
 
-# Include the router in the main app
+
+@api_router.put("/portfolio", response_model=PortfolioContent)
+async def update_portfolio(payload: PortfolioContent):
+    portfolio_dict = payload.model_dump(mode="json")
+    portfolio_dict["id"] = PORTFOLIO_DOCUMENT_ID
+    portfolio_dict["updated_at"] = utc_iso()
+
+    await db.portfolio_content.replace_one(
+        {"id": PORTFOLIO_DOCUMENT_ID},
+        portfolio_dict,
+        upsert=True,
+    )
+
+    updated_portfolio = await db.portfolio_content.find_one({"id": PORTFOLIO_DOCUMENT_ID}, {"_id": 0})
+    return updated_portfolio
+
+
+@api_router.post("/contact", response_model=ContactMessage)
+async def submit_contact_message(payload: ContactMessageCreate):
+    message = ContactMessage(**payload.model_dump())
+    message_dict = message.model_dump(mode="json")
+
+    await db.contact_messages.insert_one(message_dict.copy())
+    return message
+
+
+@api_router.get("/contact-messages", response_model=List[ContactMessage])
+async def get_contact_messages():
+    messages = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return messages
+
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ["CORS_ORIGINS"].split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def startup_seed_content():
+    await db.portfolio_content.create_index("id", unique=True)
+    await db.contact_messages.create_index("id", unique=True)
+    await get_or_seed_portfolio()
+    logger.info("Portfolio content ready")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
