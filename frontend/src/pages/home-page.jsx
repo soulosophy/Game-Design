@@ -44,7 +44,7 @@ export default function HomePage() {
               data-testid="hero-badge"
               variant="outline"
             >
-              Cyberpunk game designer
+              Game designer
             </Badge>
 
             <h1 className="mt-8 text-4xl font-black uppercase tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl" data-testid="hero-name">
@@ -143,7 +143,7 @@ export default function HomePage() {
           <div className="overflow-hidden border border-white/10 bg-black/55" data-testid="about-image-panel">
             <div className="aspect-[4/5] overflow-hidden" data-testid="about-image-wrap">
               <img
-                alt="Cyberpunk workspace"
+                alt="Game design workspace"
                 className="h-full w-full object-cover object-center"
                 data-testid="about-image"
                 src={portfolio.about.image_url}

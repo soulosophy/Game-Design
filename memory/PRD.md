@@ -31,6 +31,7 @@ I am a game design student in need of a portfolio. I have content that I would l
 
 ## What's Been Implemented
 ### 2026-04-10
+- Adjusted homepage and footer wording to remove “Cyberpunk” from professional labels while keeping the visual theme intact
 - Built a cyberpunk portfolio frontend with routes for Home/About, Projects, Resume, Contact, and Studio
 - Added grouped + filterable Projects experience powered by editable project categories
 - Added Resume page with sticky summary/skills layout and PDF download button

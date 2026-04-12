@@ -97,7 +97,7 @@ export const SiteShell = ({
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 sm:px-12 lg:flex-row lg:items-center lg:justify-between lg:px-24">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-secondary" data-testid="footer-label">
-              CYBERPUNK GAME DESIGN SHOWCASE
+              GAME DESIGN SHOWCASE
             </p>
             <p className="mt-2 max-w-xl text-sm text-foreground/65" data-testid="footer-copy">
               Built to spotlight projects, process, and a resume without guesswork.
