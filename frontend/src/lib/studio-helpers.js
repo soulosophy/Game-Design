@@ -28,7 +28,18 @@ export const createProject = (categoryId = "") => ({
     "https://images.pexels.com/photos/5845255/pexels-photo-5845255.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
   tools: ["Tool 1", "Tool 2"],
   detail_points: ["Add a design responsibility or outcome here."],
+  media_items: [],
   featured: false,
+});
+
+export const createMediaItem = () => ({
+  id: makeId("media"),
+  title: "New media item",
+  type: "image",
+  source: "url",
+  url: "https://",
+  file_id: null,
+  content_type: null,
 });
 
 export const createExperience = () => ({

@@ -1,18 +1,21 @@
 import { motion } from "framer-motion";
+import { ArrowSquareOut } from "@phosphor-icons/react";
 
 import { Badge } from "@/components/ui/badge";
 
-export const ProjectCard = ({ categoryLabel, project }) => {
+export const ProjectCard = ({ categoryLabel, onOpen, project }) => {
   return (
-    <motion.article
+    <motion.button
       animate={{ opacity: 1, y: 0 }}
       className={[
-        "group overflow-hidden border border-white/10 bg-black/55 shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-1 hover:border-secondary/55 hover:shadow-[0_0_26px_rgba(5,217,232,0.14)]",
+        "group overflow-hidden border border-white/10 bg-black/55 text-left shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-1 hover:border-secondary/55 hover:shadow-[0_0_26px_rgba(5,217,232,0.14)]",
         project.featured ? "md:col-span-2" : "",
       ].join(" ")}
-      data-testid={`project-card-${project.id}`}
+      data-testid={`project-card-button-${project.id}`}
       initial={{ opacity: 0, y: 18 }}
+      onClick={() => onOpen(project)}
       transition={{ duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
+      type="button"
     >
       <div className="relative aspect-[16/10] overflow-hidden" data-testid={`project-image-wrap-${project.id}`}>
         <img
@@ -65,6 +68,11 @@ export const ProjectCard = ({ categoryLabel, project }) => {
           ) : null}
         </div>
 
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-secondary" data-testid={`project-open-label-${project.id}`}>
+          <ArrowSquareOut size={14} />
+          <span>Open project</span>
+        </div>
+
         <p className="text-sm leading-relaxed text-foreground/75 sm:text-base" data-testid={`project-summary-${project.id}`}>
           {project.summary}
         </p>
@@ -100,6 +108,6 @@ export const ProjectCard = ({ categoryLabel, project }) => {
           ))}
         </div>
       </div>
-    </motion.article>
+    </motion.button>
   );
 };

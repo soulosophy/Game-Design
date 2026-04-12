@@ -6,6 +6,7 @@ import { Toaster, toast } from "sonner";
 import { SiteShell } from "@/components/site-shell";
 import ContactPage from "@/pages/contact-page";
 import HomePage from "@/pages/home-page";
+import ProjectDetailPage from "@/pages/project-detail-page";
 import ProjectsPage from "@/pages/projects-page";
 import ResumePage from "@/pages/resume-page";
 import StudioPage from "@/pages/studio-page";
@@ -105,6 +106,7 @@ function App() {
           >
             <Route element={<HomePage />} path="/" />
             <Route element={<ProjectsPage />} path="/projects" />
+            <Route element={<ProjectDetailPage />} path="/projects/:projectId" />
             <Route element={<ResumePage />} path="/resume" />
             <Route element={<ContactPage />} path="/contact" />
             <Route element={<StudioPage />} path="/studio" />

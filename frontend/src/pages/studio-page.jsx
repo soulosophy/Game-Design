@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useOutletContext } from "react-router-dom";
 
+import { ProjectMediaManager } from "@/components/project-media-manager";
 import { SectionHeading } from "@/components/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,12 +18,14 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { deleteUploadedMedia, uploadProjectMedia } from "@/lib/api";
 import {
   clonePortfolio,
   createCategory,
   createEducation,
   createExperience,
   createLink,
+  createMediaItem,
   createProject,
 } from "@/lib/studio-helpers";
 
@@ -125,6 +129,7 @@ function StatCard({ label, testId, value }) {
 export default function StudioPage() {
   const { messages, onRefresh, onSavePortfolio, portfolio, saving } = useOutletContext();
   const [draft, setDraft] = useState(null);
+  const [uploadingProjectId, setUploadingProjectId] = useState(null);
 
   useEffect(() => {
     setDraft(clonePortfolio(portfolio));
@@ -154,6 +159,55 @@ export default function StudioPage() {
 
   const handleReset = () => {
     setDraft(clonePortfolio(portfolio));
+  };
+
+  const handleUploadMedia = async (projectIndex, file) => {
+    const projectId = draft.projects[projectIndex].id;
+
+    try {
+      setUploadingProjectId(projectId);
+      const uploadedMedia = await uploadProjectMedia(projectId, file);
+
+      mutateDraft((next) => {
+        if (!next.projects[projectIndex].media_items) {
+          next.projects[projectIndex].media_items = [];
+        }
+
+        next.projects[projectIndex].media_items.push({
+          id: uploadedMedia.id,
+          title: uploadedMedia.original_filename,
+          type: uploadedMedia.media_type,
+          source: "upload",
+          url: uploadedMedia.url,
+          file_id: uploadedMedia.id,
+          content_type: uploadedMedia.content_type,
+        });
+      });
+
+      toast.success("Media uploaded. Save the portfolio to publish it.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn’t upload that media file.");
+    } finally {
+      setUploadingProjectId(null);
+    }
+  };
+
+  const handleRemoveMedia = async (projectIndex, mediaIndex) => {
+    const mediaItem = draft.projects[projectIndex].media_items?.[mediaIndex];
+
+    try {
+      if (mediaItem?.source === "upload" && mediaItem?.file_id) {
+        await deleteUploadedMedia(mediaItem.file_id);
+      }
+
+      mutateDraft((next) => {
+        next.projects[projectIndex].media_items.splice(mediaIndex, 1);
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn’t remove that media item.");
+    }
   };
 
   return (
@@ -377,7 +431,7 @@ export default function StudioPage() {
                   Add project
                 </Button>
               }
-              description="Project cards drive the public project gallery. Add your role, category, summary, image, tools, and bullet points here."
+              description="Project cards drive the public project gallery. Add your role, category, summary, image, tools, bullet points, and media library here."
               testId="studio-project-panel"
               title="Project cards"
             >
@@ -480,6 +534,28 @@ export default function StudioPage() {
                         title="Detail bullets"
                       />
                     </div>
+
+                    <ProjectMediaManager
+                      mediaItems={project.media_items ?? []}
+                      onAddUrlMedia={() =>
+                        mutateDraft((next) => {
+                          if (!next.projects[index].media_items) {
+                            next.projects[index].media_items = [];
+                          }
+
+                          next.projects[index].media_items.push(createMediaItem());
+                        })
+                      }
+                      onChangeMedia={(mediaIndex, key, value) =>
+                        mutateDraft((next) => {
+                          next.projects[index].media_items[mediaIndex][key] = value;
+                        })
+                      }
+                      onRemoveMedia={(mediaIndex) => handleRemoveMedia(index, mediaIndex)}
+                      onUploadFile={(file) => handleUploadMedia(index, file)}
+                      projectId={project.id}
+                      uploading={uploadingProjectId === project.id}
+                    />
                   </article>
                 ))}
               </div>

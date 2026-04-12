@@ -1,12 +1,15 @@
 import logging
+import mimetypes
 import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Literal, Optional
 
+import requests
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -20,6 +23,22 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 PORTFOLIO_DOCUMENT_ID = "portfolio-main"
+APP_STORAGE_PREFIX = "neon-portfolio-137"
+STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+MAX_UPLOAD_BYTES = 40 * 1024 * 1024
+storage_key = None
+
+ALLOWED_CONTENT_TYPES = {
+    "image/jpeg": "image",
+    "image/png": "image",
+    "image/webp": "image",
+    "image/gif": "image",
+    "video/mp4": "video",
+    "video/webm": "video",
+    "video/quicktime": "video",
+    "application/pdf": "pdf",
+}
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -35,6 +54,16 @@ class ProjectCategory(BaseModel):
     description: str
 
 
+class MediaItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    type: Literal["image", "video", "pdf"]
+    source: Literal["upload", "url"]
+    url: str
+    file_id: Optional[str] = None
+    content_type: Optional[str] = None
+
+
 class ProjectEntry(BaseModel):
     id: str
     title: str
@@ -46,6 +75,7 @@ class ProjectEntry(BaseModel):
     cover_image: str
     tools: List[str] = Field(default_factory=list)
     detail_points: List[str] = Field(default_factory=list)
+    media_items: List[MediaItem] = Field(default_factory=list)
     featured: bool = False
 
 
@@ -130,6 +160,98 @@ class ContactMessage(ContactMessageCreate):
     created_at: str = Field(default_factory=utc_iso)
 
 
+class UploadedFileRecord(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str
+    storage_path: str
+    original_filename: str
+    content_type: str
+    media_type: Literal["image", "video", "pdf"]
+    size: int
+    is_deleted: bool = False
+    created_at: str = Field(default_factory=utc_iso)
+
+
+class MediaUploadResponse(BaseModel):
+    id: str
+    project_id: str
+    original_filename: str
+    content_type: str
+    media_type: Literal["image", "video", "pdf"]
+    size: int
+    url: str
+
+
+def init_storage() -> str:
+    global storage_key
+
+    if storage_key:
+        return storage_key
+
+    if not EMERGENT_KEY:
+        raise RuntimeError("EMERGENT_LLM_KEY is not configured")
+
+    response = requests.post(
+        f"{STORAGE_URL}/init",
+        json={"emergent_key": EMERGENT_KEY},
+        timeout=30,
+    )
+    response.raise_for_status()
+    storage_key = response.json()["storage_key"]
+    return storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    response = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data,
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_object(path: str) -> tuple[bytes, str]:
+    key = init_storage()
+    response = requests.get(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.content, response.headers.get("Content-Type", "application/octet-stream")
+
+
+def detect_media_type(filename: str, content_type: Optional[str]) -> tuple[str, str, str]:
+    normalized_content_type = (content_type or "").lower()
+    guessed_content_type, _ = mimetypes.guess_type(filename)
+
+    if normalized_content_type in ALLOWED_CONTENT_TYPES:
+        media_type = ALLOWED_CONTENT_TYPES[normalized_content_type]
+        resolved_content_type = normalized_content_type
+    elif guessed_content_type in ALLOWED_CONTENT_TYPES:
+        media_type = ALLOWED_CONTENT_TYPES[guessed_content_type]
+        resolved_content_type = guessed_content_type
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Only image, video, and PDF uploads are supported.",
+        )
+
+    extension = Path(filename).suffix.lower().lstrip(".")
+    if not extension:
+        extension = mimetypes.guess_extension(resolved_content_type) or ".bin"
+        extension = extension.lstrip(".")
+
+    return media_type, resolved_content_type, extension
+
+
+def build_upload_url(file_id: str) -> str:
+    return f"/api/uploads/{file_id}/content"
+
+
 def default_portfolio() -> PortfolioContent:
     return PortfolioContent(
         hero=HeroContent(
@@ -185,6 +307,7 @@ def default_portfolio() -> PortfolioContent:
                     "Iterated on player readability after peer playtests.",
                     "Documented key beats with top-down maps and callouts.",
                 ],
+                media_items=[],
                 featured=True,
             ),
             ProjectEntry(
@@ -202,6 +325,7 @@ def default_portfolio() -> PortfolioContent:
                     "Created balancing tables for enemy scaling and reward pacing.",
                     "Ran tuning passes based on session feedback.",
                 ],
+                media_items=[],
                 featured=False,
             ),
             ProjectEntry(
@@ -219,6 +343,7 @@ def default_portfolio() -> PortfolioContent:
                     "Wrote branching scenes for trust gain and loss.",
                     "Used environmental clues to foreshadow mission twists.",
                 ],
+                media_items=[],
                 featured=False,
             ),
         ],
@@ -335,6 +460,91 @@ async def get_contact_messages():
     return messages
 
 
+@api_router.post("/uploads", response_model=MediaUploadResponse)
+async def upload_project_media(
+    project_id: str = Form(...),
+    file: UploadFile = File(...),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="A file is required.")
+
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds the 40MB upload limit.")
+
+    media_type, resolved_content_type, extension = detect_media_type(
+        file.filename,
+        file.content_type,
+    )
+
+    file_record = UploadedFileRecord(
+        project_id=project_id,
+        storage_path="",
+        original_filename=file.filename,
+        content_type=resolved_content_type,
+        media_type=media_type,
+        size=len(data),
+    )
+    storage_path = f"{APP_STORAGE_PREFIX}/uploads/{project_id}/{file_record.id}.{extension}"
+
+    try:
+        upload_result = put_object(storage_path, data, resolved_content_type)
+    except Exception as error:
+        logger.exception("Storage upload failed: %s", error)
+        raise HTTPException(status_code=502, detail="Media upload failed.") from error
+
+    file_record.storage_path = upload_result["path"]
+    file_record.size = upload_result.get("size", len(data))
+
+    await db.uploaded_files.insert_one(file_record.model_dump(mode="json").copy())
+
+    return MediaUploadResponse(
+        id=file_record.id,
+        project_id=project_id,
+        original_filename=file_record.original_filename,
+        content_type=file_record.content_type,
+        media_type=file_record.media_type,
+        size=file_record.size,
+        url=build_upload_url(file_record.id),
+    )
+
+
+@api_router.get("/uploads/{file_id}/content")
+async def serve_uploaded_media(file_id: str):
+    file_record = await db.uploaded_files.find_one(
+        {"id": file_id, "is_deleted": False},
+        {"_id": 0},
+    )
+    if not file_record:
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    try:
+        file_bytes, content_type = get_object(file_record["storage_path"])
+    except Exception as error:
+        logger.exception("Storage download failed: %s", error)
+        raise HTTPException(status_code=502, detail="Media download failed.") from error
+
+    return Response(
+        content=file_bytes,
+        media_type=file_record.get("content_type", content_type),
+        headers={
+            "Content-Disposition": f'inline; filename="{file_record["original_filename"]}"'
+        },
+    )
+
+
+@api_router.delete("/uploads/{file_id}")
+async def soft_delete_uploaded_media(file_id: str):
+    result = await db.uploaded_files.update_one(
+        {"id": file_id},
+        {"$set": {"is_deleted": True}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    return {"success": True}
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -356,7 +566,17 @@ logger = logging.getLogger(__name__)
 async def startup_seed_content():
     await db.portfolio_content.create_index("id", unique=True)
     await db.contact_messages.create_index("id", unique=True)
+    await db.uploaded_files.create_index("id", unique=True)
+    await db.uploaded_files.create_index("storage_path", unique=True)
     await get_or_seed_portfolio()
+
+    if EMERGENT_KEY:
+        try:
+            init_storage()
+            logger.info("Object storage ready")
+        except Exception as error:
+            logger.error("Object storage init failed: %s", error)
+
     logger.info("Portfolio content ready")
 
 

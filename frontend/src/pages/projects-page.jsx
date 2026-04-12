@@ -1,13 +1,26 @@
-import { useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
 
 import { ProjectCard } from "@/components/project-card";
+import { ProjectPreviewModal } from "@/components/project-preview-modal";
 import { SectionHeading } from "@/components/section-heading";
 import { Button } from "@/components/ui/button";
 
 export default function ProjectsPage() {
   const { portfolio } = useOutletContext();
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const groupedCategories = useMemo(() => {
     const visibleCategories =
@@ -22,6 +35,19 @@ export default function ProjectsPage() {
       }))
       .filter((category) => category.projects.length > 0);
   }, [activeFilter, portfolio.project_categories, portfolio.projects]);
+
+  const handleOpenProject = (project) => {
+    if (isMobileViewport) {
+      setSelectedProject(project);
+      return;
+    }
+
+    navigate(`/projects/${project.id}`);
+  };
+
+  const selectedCategoryLabel = portfolio.project_categories.find(
+    (item) => item.id === selectedProject?.category_id,
+  )?.label;
 
   return (
     <div className="px-6 py-24 sm:px-12 lg:px-24 lg:py-28" data-testid="projects-page">
@@ -98,7 +124,7 @@ export default function ProjectsPage() {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2" data-testid={`project-category-grid-${category.id}`}>
                 {category.projects.map((project) => (
-                  <ProjectCard categoryLabel={category.label} key={project.id} project={project} />
+                  <ProjectCard categoryLabel={category.label} key={project.id} onOpen={handleOpenProject} project={project} />
                 ))}
               </div>
             </section>
@@ -115,6 +141,14 @@ export default function ProjectsPage() {
             </div>
           ) : null}
         </div>
+
+        {selectedProject ? (
+          <ProjectPreviewModal
+            categoryLabel={selectedCategoryLabel ?? "Project"}
+            onClose={() => setSelectedProject(null)}
+            project={selectedProject}
+          />
+        ) : null}
       </div>
     </div>
   );
