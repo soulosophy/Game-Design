@@ -12,6 +12,7 @@ from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.cors import CORSMiddleware
 
 
@@ -23,7 +24,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 PORTFOLIO_DOCUMENT_ID = "portfolio-main"
-APP_STORAGE_PREFIX = "neon-portfolio-137"
+APP_STORAGE_PREFIX = os.environ["APP_STORAGE_PREFIX"]
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
 MAX_UPLOAD_BYTES = 40 * 1024 * 1024
@@ -488,7 +489,12 @@ async def upload_project_media(
     storage_path = f"{APP_STORAGE_PREFIX}/uploads/{project_id}/{file_record.id}.{extension}"
 
     try:
-        upload_result = put_object(storage_path, data, resolved_content_type)
+        upload_result = await run_in_threadpool(
+            put_object,
+            storage_path,
+            data,
+            resolved_content_type,
+        )
     except Exception as error:
         logger.exception("Storage upload failed: %s", error)
         raise HTTPException(status_code=502, detail="Media upload failed.") from error
@@ -519,7 +525,10 @@ async def serve_uploaded_media(file_id: str):
         raise HTTPException(status_code=404, detail="File not found.")
 
     try:
-        file_bytes, content_type = get_object(file_record["storage_path"])
+        file_bytes, content_type = await run_in_threadpool(
+            get_object,
+            file_record["storage_path"],
+        )
     except Exception as error:
         logger.exception("Storage download failed: %s", error)
         raise HTTPException(status_code=502, detail="Media download failed.") from error
@@ -572,7 +581,7 @@ async def startup_seed_content():
 
     if EMERGENT_KEY:
         try:
-            init_storage()
+            await run_in_threadpool(init_storage)
             logger.info("Object storage ready")
         except Exception as error:
             logger.error("Object storage init failed: %s", error)

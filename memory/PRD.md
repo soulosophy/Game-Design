@@ -31,6 +31,8 @@ I am a game design student in need of a portfolio. I have content that I would l
 
 ## What's Been Implemented
 ### 2026-04-10
+- Added clickable project detail experiences with dedicated desktop pages and mobile modal previews
+- Added project media support for images, videos, and PDFs with both URL-based entries and direct file uploads through object storage
 - Adjusted homepage and footer wording to remove “Cyberpunk” from professional labels while keeping the visual theme intact
 - Built a cyberpunk portfolio frontend with routes for Home/About, Projects, Resume, Contact, and Studio
 - Added grouped + filterable Projects experience powered by editable project categories
